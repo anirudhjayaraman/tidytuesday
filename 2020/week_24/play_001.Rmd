@@ -1,0 +1,149 @@
+---
+title: "African American Achievements"
+author: "Anirudh Jayaraman"
+date: "11/06/2020"
+output: html
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Loading possibly relevant libraries (that we can keep adding to)
+
+```{r}
+library(tidyverse)
+theme_set(new = theme_light())
+
+```
+
+Getting the data!
+
+```{r}
+choose_how <- 1  # Set this to either 0 or 1
+
+if(choose_how == 0){
+  # Either read with Github csv urls ------------------------------------------
+  firsts_url <- "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-06-09/firsts.csv"
+  science_url <- "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-06-09/science.csv"
+  
+  firsts <- readr::read_csv(firsts_url)
+  science <- readr::read_csv(science_url)
+} else {
+  # Or read in with tidytuesdayR package --------------------------------------
+  # (https://github.com/thebioengineer/tidytuesdayR)
+ 
+  choose_again <- 1  # Set this to either 0 or 1
+
+  if(choose_again == 0){
+    tuesdata <- tidytuesdayR::tt_load('2020-06-09')
+  } else {
+    tuesdata <- tidytuesdayR::tt_load(2020, week = 24)
+  }
+  
+  firsts <- tuesdata$firsts
+  science <- tuesdata$science
+}
+
+```
+
+
+```{r}
+
+View(firsts)
+View(science)
+
+```
+
+
+## Firsts
+
+```{r}
+
+firsts %>% 
+  ggplot(mapping = aes(x = year, fill = category)) +
+  geom_histogram(bins = 50)
+
+```
+
+```{r}
+firsts %>% 
+  ggplot(mapping = aes(x = year, fill = category)) +
+  geom_histogram(bins = 50) + 
+  facet_wrap(~ category)
+
+```
+
+
+
+```{r}
+
+firsts %>% count(category, sort = TRUE)
+
+```
+
+
+```{r}
+
+firsts %>%
+  count(category, sort = TRUE) %>%
+  mutate(category = fct_reorder(category, n)) %>%
+  ggplot(mapping = aes(x = n, y = category)) + 
+  geom_col()
+
+```
+
+
+```{r}
+firsts %>% select(person)
+
+```
+
+Removing any text from the person column following [ or (
+```{r}
+
+firsts %>%
+  mutate(person = str_remove(person, pattern = "[\\(\\[].*"),
+         person = str_trim(person)) %>%
+  select(person)
+
+
+```
+
+Changing the Firsts dataset to reflect cleaned Person column
+
+```{r}
+firsts <- firsts %>%
+  mutate(person = str_remove(person, "[\\(\\[].*"),
+         person = str_trim(person))
+
+```
+
+
+```{r}
+tuesdata
+```
+
+Interactive Graphics
+
+```{r}
+library(plotly)
+
+```
+
+Attempting a timeline via plotly
+
+```{r}
+g <- firsts %>%
+  ggplot(mapping = aes(x = year, y = category, color = category)) + 
+  geom_point() +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid.major.y = element_blank()) + 
+  labs("Timeline of some notable African-American achievements")
+
+ggplotly(g)
+  
+```
+
+

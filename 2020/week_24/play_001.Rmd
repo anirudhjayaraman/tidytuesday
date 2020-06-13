@@ -1,4 +1,4 @@
----
+̥---
 title: "African American Achievements"
 author: "Anirudh Jayaraman"
 date: "11/06/2020"
@@ -14,7 +14,6 @@ Loading possibly relevant libraries (that we can keep adding to)
 ```{r}
 library(tidyverse)
 theme_set(new = theme_light())
-
 ```
 
 Getting the data!
@@ -44,26 +43,19 @@ if(choose_how == 0){
   firsts <- tuesdata$firsts
   science <- tuesdata$science
 }
-
 ```
-
 
 ```{r}
-
 View(firsts)
 View(science)
-
 ```
-
 
 ## Firsts
 
 ```{r}
-
 firsts %>% 
   ggplot(mapping = aes(x = year, fill = category)) +
   geom_histogram(bins = 50)
-
 ```
 
 ```{r}
@@ -71,17 +63,11 @@ firsts %>%
   ggplot(mapping = aes(x = year, fill = category)) +
   geom_histogram(bins = 50) + 
   facet_wrap(~ category)
-
 ```
-
-
 
 ```{r}
-
 firsts %>% count(category, sort = TRUE)
-
 ```
-
 
 ```{r}
 
@@ -90,24 +76,18 @@ firsts %>%
   mutate(category = fct_reorder(category, n)) %>%
   ggplot(mapping = aes(x = n, y = category)) + 
   geom_col()
-
 ```
-
 
 ```{r}
 firsts %>% select(person)
-
 ```
 
 Removing any text from the person column following [ or (
 ```{r}
-
 firsts %>%
   mutate(person = str_remove(person, pattern = "[\\(\\[].*"),
          person = str_trim(person)) %>%
   select(person)
-
-
 ```
 
 Changing the Firsts dataset to reflect cleaned Person column
@@ -119,7 +99,6 @@ firsts <- firsts %>%
 
 ```
 
-
 ```{r}
 tuesdata
 ```
@@ -128,22 +107,148 @@ Interactive Graphics
 
 ```{r}
 library(plotly)
-
+library(glue)
 ```
 
 Attempting a timeline via plotly
 
 ```{r}
 g <- firsts %>%
-  ggplot(mapping = aes(x = year, y = category, color = category)) + 
+  ggplot(mapping = aes(x = year, 
+                       y = category, 
+                       color = category,
+                       text = glue("{year}, {accomplishment},\n{person}"))) + 
   geom_point() +
   theme(axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
         panel.grid.major.y = element_blank()) + 
-  labs("Timeline of some notable African-American achievements")
+  labs(title = "Timeline of some notable African-American achievements", 
+       caption = "Source: https://en.wikipedia.org/wiki/List_of_African-American_firsts") 
 
-ggplotly(g)
-  
+ggplotly(g, tooltip = "text")
 ```
 
+## Science
 
+```{r}
+science
+```
+
+```{r}
+science %>%
+  count(occupation_s) %>%
+  arrange(desc(n)) %>% head(n = 10)
+```
+
+Some occupations are list separated by semicolons. The data currently has 120 rows and 7 columns. Let's expand the dataset based on one occupation instance in each row.
+
+```{r}
+science %>%
+  separate_rows(occupation_s, sep = ";") %>%
+  mutate(occupation = str_to_title(occupation_s)) %>%
+  count(occupation, sort = TRUE)
+
+science %>%
+  separate_rows(occupation_s, sep = ";")
+```
+
+Filter the dataset for 'scientists' and 'ians' of any kind
+```{r}
+science %>%
+  separate_rows(occupation_s, sep = ";") %>%
+  filter(str_detect(regex(pattern = "scientist", ignore_case = TRUE), 
+                    string = occupation_s) | 
+           str_detect(string = occupation_s, 
+                      pattern = regex(".*ian")))
+```
+
+```{r}
+science %>% 
+  pull(links)
+```
+
+```{r}
+library(rvest)
+```
+
+```{r}
+read_html("https://en.wikipedia.org/wiki/David_Blackwell") %>%
+  html_node(".vcard") %>%
+  as.character
+```
+
+```{r}
+read_html("https://en.wikipedia.org/wiki/David_Blackwell") %>%
+  html_node(".vcard") %>%
+  html_table()
+```
+
+```{r}
+read_html("https://en.wikipedia.org/wiki/David_Blackwell") %>%
+  html_node(".vcard") %>%
+  html_table() %>%
+  set_names("key", "value") %>%
+  as_tibble()
+```
+
+```{r}
+science %>%
+  head
+```
+
+science_html now has a column named html, containing XML
+```{r}
+science_html <- science %>%
+  separate_rows(occupation_s, sep = ";") %>%
+  mutate(html = map(links, possibly(.f = read_html, 
+                                    otherwise = NULL, 
+                                    quiet = FALSE)))
+```
+
+Let's pull the html column (which is a list in reality)
+```{r}
+science_html %>% pull(html) %>% head
+```
+
+Anonymous function
+
+```{r}
+extract_infobox <- . %>%
+  html_node(".vcard") %>%
+  html_table(header = FALSE) %>%
+  as.tibble()
+```
+
+```{r}
+extract_infobox
+```
+
+Applying this function to science_html
+
+```{r}
+science_html %>% 
+  glimpse
+```
+
+```{r}
+science_html %>%
+  mutate(infobox = map(html, possibly(.f = extract_infobox, 
+                                   otherwise = NULL, 
+                                   quiet = TRUE)))
+```
+
+```{r}
+science_html %>%
+  mutate(infobox = map(html, possibly(.f = extract_infobox, 
+                                   otherwise = NULL, 
+                                   quiet = TRUE))) %>%
+  glimpse
+```
+
+```{r}
+science_html %>%
+  mutate(infobox = map(html, possibly(.f = extract_infobox, 
+                                   otherwise = NULL, 
+                                   quiet = TRUE))) %>%
+  filter(!map_lgl(infobox, is.null))
+```
